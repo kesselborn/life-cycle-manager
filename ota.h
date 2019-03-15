@@ -5,8 +5,8 @@
 #ifndef OTAVERSION
  #error You must set OTAVERSION=x.y.z of the ota code to match github version tag x.y.z
 #endif
-#define OTAREPO  "HomeACcessoryKid/life-cycle-manager"
-#define LCMREPO  "HomeACcessoryKid/life-cycle-manager"
+#define OTAREPO  "kesselborn/life-cycle-manager"
+#define LCMREPO  "kesselborn/life-cycle-manager"
 #define MAINFILE "otamain.bin"
 #define BOOTFILE "otaboot.bin"
 #define CERTFILE "certs.sector"

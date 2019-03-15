@@ -1,0 +1,49 @@
+#!/bin/bash -e
+test -n "${1:?echo usage: $0 <version> <artifact_dir>}"
+test -n "${2:?echo usage: $0 <version> <artifact_dir>}"
+test -n "${GITHUB_TOKEN:?please set GITHUB_TOKEN env var}"
+
+VERSION=$(echo $1|grep -Eo "[0-9]+\.[0-9]+\.[0-9]+") || { echo "$1 does not match file version pattern x.y.z"; exit 1; }
+ARTIFACT_DIR=$2
+
+# commit version bumps and create new tag
+git tag ${VERSION}
+
+{ git push --tags && git push; } || true
+
+################ github release upload
+AUTH="Authorization: token ${GITHUB_TOKEN:?please set GITHUB_TOKEN env var}"
+VERSION=${VERSION}
+
+repo=$(git remote get-url origin|cut -d: -f2|sed 's/\.git$//g')
+
+release_notes_file=$(mktemp /tmp/release_notes.XXXXXX)
+echo -e "release notes for github:\n$(git log --format=%B -n 1 HEAD^1)\n\n$(git log --format=%B -n 1 HEAD)" > ${release_notes_file}
+vi ${release_notes_file} || true
+(set -x; cat release_notes_file|pbcopy)
+release_notes=$(cat ${release_notes_file} | while read l; do echo -n "$l\\n"; done)
+release_body="{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"body\":\"${release_notes}\",\"draft\":false,\"prerelease\":false}"
+rm -f ${release_notes_file}
+
+response=$(set -x; curl -ifL -H"Accept: application/vnd.github.v3+json" -H"${AUTH}" -XPOST -d "${release_body}" https://api.github.com/repos/${repo}/releases) \
+  || { echo "Error: does the release already exist? Check https://github.com/${repo}/releases/tag/${VERSION}"; exit 1; }
+
+upload_url=$(echo ${response}|sed -E 's/.*"upload_url": "([^"]+)".*/\1/g'|cut -d{ -f1)
+
+for f in ${ARTIFACT_DIR}/*
+do
+  echo "Uploading asset... $f" >&2
+  curl -L"#" --data-binary @"${f}" \
+    -H "Content-Type: application/x-xpinstall" \
+    -H"Accept: application/vnd.github.v3+json" -H"${AUTH}" \
+    -XPOST ${upload_url}?name=$(basename $f)
+done
+
+
+  cat<<EOF
+
+
+  Successfully created release -- edit edit release notes at: https://github.com/${repo}/releases/edit/${VERSION}
+
+
+EOF

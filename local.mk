@@ -2,8 +2,8 @@ PROGRAM = otaboot
 
 ### select EITHER the top block OR the bottom block
 
-#PROGRAM = otamain
-#LINKER_SCRIPTS = $(ROOT)ld/program1.ld
+# PROGRAM = otamain
+# LINKER_SCRIPTS = $(ROOT)ld/program1.ld
 
 #==================================================
 # for this to work, we need to copy $(ROOT)ld/program.ld
