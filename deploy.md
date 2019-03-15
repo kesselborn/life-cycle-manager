@@ -13,8 +13,11 @@ cd life-cycle-manager
 - for the example, we expect the current version to be `1.0.0` and the new version to be `1.0.1`
 - create/update the file `versions1/latest-pre-release` without new-line and setup the new versions folder
 ```
+# adjust these env vars
 export CURRENT_VERSION=1.0.0 
 export NEW_VERSION=1.0.1
+export PORT=/dev/cu.SLAB_USBtoUART
+
 git rm -rf versions1/${CURRENT_VERSION}v
 mkdir versions1/${NEW_VERSION}v
 echo -n ${NEW_VERSION} > versions1/${NEW_VERSION}v/latest-pre-release
@@ -23,7 +26,6 @@ cp versions1/public*key*   versions1/${NEW_VERSION}v
 ```
 - set `local.mk` to the **ota-main** program
 ```
-export NEW_VERSION=1.0.1
 make -j6 rebuild OTAVERSION=${NEW_VERSION}
 mv firmware/otamain.bin versions1/${NEW_VERSION}v
 ```
@@ -34,12 +36,10 @@ mv firmware/otaboot.bin versions1/${NEW_VERSION}v
 make -j6 rebuild OTAVERSION=${NEW_VERSION} OTABETA=1
 cp firmware/otaboot.bin versions1/${NEW_VERSION}v/otabootbeta.bin
 ```
-- commit the new version : `git add versions1/${NEW_VERSION}v && git commit -av`
-- release the version: `release ${NEW_VERSION} versions/${NEW_VERSION}v`
-- commit this as version 1.0.0  
-- set up a new github release 1.0.0 as a pre-release using the just commited master...  
-- upload the certs and binaries to the pre-release assets on github  
-  #
+- commit the new version : `git add versions1/${NEW_VERSION}v && git commit -av && git push`
+- release the version: `./release ${NEW_VERSION}v versions1/${NEW_VERSION}v`
+- follow the link the script outputs at the end and set the release to `pre-release`
+
 - erase the flash and upload the privatekey
 ```
 esptool.py -p /dev/cu.usbserial-* --baud 230400 erase_flash 
@@ -47,15 +47,18 @@ esptool.py -p /dev/cu.usbserial-* --baud 230400 write_flash 0xf9000 versions1-pr
 ```
 - upload the ota-boot BETA program to the device that contains the private key
 ```
-make flash OTAVERSION=1.0.0 OTABETA=1
+make flash OTAVERSION=${NEW_VERSION} OTABETA=1
 ```
 - power cycle to prevent the bug for software reset after flash  
 - setup wifi and select the ota-demo repo without pre-release checkbox  
 - create the 2 signature files next to the bin file and upload to github one by one  
 - verify the hashes on the computer  
 ```
-openssl sha384 versions1/1.0.0v/otamain.bin
-xxd versions1/1.0.0v/otamain.bin.sig
+for f in versions1/${NEW_VERSION}v/*.bin
+do
+  openssl sha384 -binary -out ${f}.sig $f
+  printf "%08x" `cat $f | wc -c`| xxd -r -p >> ${f}.sig
+done
 ```
 
 - upload the file versions1/1.0.0v/latest-pre-release to the 'latest release' assets on github
